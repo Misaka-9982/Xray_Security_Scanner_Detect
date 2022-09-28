@@ -50,7 +50,7 @@ def xyxy2xywhn(bbox, size):
     yc = (bbox[1] + (bbox[3] - bbox[1]) / 2.) / size[1]
     wn = (bbox[2] - bbox[0]) / size[0]
     hn = (bbox[3] - bbox[1]) / size[1]
-    return (xc, yc, wn, hn)
+    return xc, yc, wn, hn
 
 
 def parser_info(info: dict, only_cat=True, class_indices=None):
@@ -59,21 +59,25 @@ def parser_info(info: dict, only_cat=True, class_indices=None):
     objects = []
     width = int(info['annotation']['size']['width'])
     height = int(info['annotation']['size']['height'])
-    for obj in info['annotation']['object']:
-        obj_name = obj['name']
-        category_set.add(obj_name)
-        if only_cat:
-            continue
-        xmin = int(obj['bndbox']['xmin'])
-        ymin = int(obj['bndbox']['ymin'])
-        xmax = int(obj['bndbox']['xmax'])
-        ymax = int(obj['bndbox']['ymax'])
-        bbox = xyxy2xywhn((xmin, ymin, xmax, ymax), (width, height))
-        if class_indices is not None:
-            obj_category = class_indices[obj_name]
-            object = [obj_category, bbox]
-            objects.append(object)
-
+    try:
+        for obj in info['annotation']['object']:
+            if not isinstance(obj, dict):
+                continue
+            obj_name = obj['name']
+            category_set.add(obj_name)
+            if only_cat:
+                continue
+            xmin = int(float(obj['bndbox']['xmin']))
+            ymin = int(float(obj['bndbox']['ymin']))
+            xmax = int(float(obj['bndbox']['xmax']))
+            ymax = int(float(obj['bndbox']['ymax']))
+            bbox = xyxy2xywhn((xmin, ymin, xmax, ymax), (width, height))
+            if class_indices is not None:
+                obj_category = class_indices[obj_name]
+                object = [obj_category, bbox]
+                objects.append(object)
+    except KeyError:
+        print(f"Empty label!{info['annotation']['filename']}")
     return filename, objects
 
 
