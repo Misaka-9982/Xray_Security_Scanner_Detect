@@ -1,0 +1,7 @@
+path: ../GenshinFishingDataSet
+train: images/train
+val: images/val
+
+# classes
+nc: 3
+names: ['mid', 'low', 'high']
