@@ -3,6 +3,7 @@ import random
 import shutil
 
 # 按比例分割训练集和测试集
+# 没有排除classes！！ 要手动检查classes位置！！！
 # exp: 0.jpg->0.txt
 val_rate = 0.2
 assert Path('./x_ray_dataset/images/train').is_dir()

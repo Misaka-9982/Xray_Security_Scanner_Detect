@@ -1,0 +1,7 @@
+path: ./x_ray_dataset
+train: images/train
+val: images/val
+
+# classes
+nc: 7
+names: ['Gun', 'Knife', 'Plier', 'Scissors', 'Wrench', 'Battery', 'Lighter']
