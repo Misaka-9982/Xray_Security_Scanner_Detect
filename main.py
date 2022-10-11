@@ -16,8 +16,6 @@ class DetectCore(QObject):
 
     def __init__(self):
         super(DetectCore, self).__init__()
-        # 绑定槽函数
-        ui.imgDetectButton.clicked.connect(self.imgdetect)
 
     def getfile(self):
         name = QFileDialog.getOpenFileName()
@@ -30,13 +28,31 @@ class DetectCore(QObject):
         detect.run(weights='yolov5s.pt', source=self.getfile())
 
 
+class UI_init(QObject):
+    # 预留给自定义信号
+
+    def __init__(self):
+        super(UI_init, self).__init__()
+        # 绑定槽函数
+        ui1.imgDetectButton.clicked.connect(self.initui2)
+
+    def initui2(self):
+        Mainwindow2 = QMainWindow()
+        ui2 = UI.ui_2.Ui_MainWindow()
+        ui2.setupUi(Mainwindow2)
+        Mainwindow2.show()
+
+
+
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    Mainwindow = QMainWindow()
+    Mainwindow1 = QMainWindow()
 
-    ui = UI.ui_1.Ui_MainWindow()
-    ui.setupUi(Mainwindow)
+    ui1 = UI.ui_1.Ui_MainWindow()
+    ui1.setupUi(Mainwindow1)
 
-    core = DetectCore()
-    Mainwindow.show()
+    UI_init()
+    Mainwindow1.show()
     sys.exit(app.exec())
