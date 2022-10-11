@@ -133,7 +133,7 @@ def create_dataloader(path,
     return loader(dataset,
                   batch_size=batch_size,
                   shuffle=shuffle and sampler is None,
-                  num_workers=3,  # 防止将数据集加载到内存过多爆页面文件
+                  num_workers=2,  # 防止将数据集加载到内存过多爆页面文件
                   # num_workers=nw,  # nw是cpu核心数目
                   sampler=sampler,
                   pin_memory=True,
