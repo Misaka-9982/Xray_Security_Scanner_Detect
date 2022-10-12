@@ -17,11 +17,11 @@ class DetectCore(QObject):
     def __init__(self):
         super(DetectCore, self).__init__()
 
-    def imgdetect(self):  # 将来增加模型选择功能
+    def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
         name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
                                                                       '*.tif *.tiff *.webp')
         if len(name[0]):    # 记得改权重为训练后的新权重
-            detect.run(weights='yolov5s.pt', source=name[0])
+            detect.RunCore.run(weights='yolov5s.pt', source=name[0])
         else:
             pass
 
@@ -29,7 +29,7 @@ class DetectCore(QObject):
         name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
                                                                       '*.mp4 *.mpeg *.mpg *.ts *.wmv')
         if len(name[0]):
-            detect.run(weights='yolov5s.pt', source=name[0])
+            detect.RunCore.run(weights='yolov5s.pt', source=name[0])
         else:
             pass
 
