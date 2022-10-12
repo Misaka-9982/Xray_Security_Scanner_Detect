@@ -1,8 +1,11 @@
 import sys
+from PIL import Image, ImageQt
+import numpy as np
 
 from PyQt5.QtCore import QObject, pyqtSignal
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QListWidgetItem
 from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtGui import QPixmap, QImageReader
 
 import UI.ui_1
 import UI.ui_2
@@ -28,22 +31,22 @@ class UI_init(QObject):
         ui1.cameraDetectButton.clicked.connect(self.initui4)
 
     def initui2(self):
-        ui2 = UI.ui_2.Ui_MainWindow()
-        ui2.setupUi(Mainwindow)
+        self.ui2 = UI.ui_2.Ui_MainWindow()
+        self.ui2.setupUi(Mainwindow)
         Mainwindow.show()
-        ui2.selectImageButton.clicked.connect(core.imgdetect)
+        self.ui2.selectImageButton.clicked.connect(core.imgdetect)
 
     def initui3(self):
-        ui3 = UI.ui_3.Ui_MainWindow()
-        ui3.setupUi(Mainwindow)
+        self.ui3 = UI.ui_3.Ui_MainWindow()
+        self.ui3.setupUi(Mainwindow)
         Mainwindow.show()
-        ui3.selectVideoButton.clicked.connect(core.viddetect)
+        self.ui3.selectVideoButton.clicked.connect(core.viddetect)
 
     def initui4(self):
-        ui4 = UI.ui_4.Ui_MainWindow()
-        ui4.setupUi(Mainwindow)
+        self.ui4 = UI.ui_4.Ui_MainWindow()
+        self.ui4.setupUi(Mainwindow)
         Mainwindow.show()
-        ui4.selectCameraButton.clicked.connect(core.camdetect)
+        self.ui4.selectCameraButton.clicked.connect(core.camdetect)
 
 
 class DetectCore(QObject):
@@ -62,6 +65,7 @@ class DetectCore(QObject):
         name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
                                                                       '*.tif *.tiff *.webp')
         if len(name[0]):    # 记得改权重为训练后的新权重
+            uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
             self.runcore.run(weights='yolov5s.pt', source=name[0])
         else:
             pass
@@ -70,6 +74,7 @@ class DetectCore(QObject):
         name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
                                                                       '*.mp4 *.mpeg *.mpg *.ts *.wmv')
         if len(name[0]):
+            uiinit.ui3.detectResultListVid.clear()
             self.runcore.run(weights='yolov5s.pt', source=name[0])
         else:
             pass
@@ -83,7 +88,11 @@ class UiUpdate(QObject):
         super(UiUpdate, self).__init__()
 
     def ui2update(self, signal):
-        pass
+        # 后面根据可能概率换为QTabelWidget来显示颜色等级
+        if isinstance(signal[0], str):
+            uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(signal[0]))
+        elif isinstance(signal[0], np.ndarray):
+            uiinit.ui2.imageLabel.setPixmap(QPixmap(signal[1]))  # 图片文件路径
 
     def ui3update(self, signal):
         pass

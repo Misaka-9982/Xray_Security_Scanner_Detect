@@ -28,6 +28,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from PIL import Image
 
 from PyQt5.QtCore import QObject, pyqtSignal
 import torch
@@ -50,6 +51,7 @@ from utils.torch_utils import select_device, time_sync
 # @torch.no_grad()  # 减少内存/显存消耗，理论上加快计算，但是实测不明显甚至有反作用
 # diy就注释掉了
 class RunCore(QObject):
+    # 0为物品名称，1为图片
     imgresultsignal = pyqtSignal(list)
     vidresultsignal = pyqtSignal(list)
     # camresultsignal
@@ -199,6 +201,8 @@ class RunCore(QObject):
                 if save_img:
                     if dataset.mode == 'image':
                         cv2.imwrite(save_path, im0)
+                        # 发射标记后的图片和路径
+                        self.imgresultsignal.emit([im0, save_path])
                     else:  # 'video' or 'stream'
                         if vid_path[i] != save_path:  # new video
                             vid_path[i] = save_path
