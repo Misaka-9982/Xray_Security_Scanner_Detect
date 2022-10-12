@@ -11,38 +11,6 @@ import UI.ui_4
 import detect
 
 
-class DetectCore(QObject):
-    # 预留给自定义信号
-
-    def __init__(self):
-        super(DetectCore, self).__init__()
-        self.runcore = detect.RunCore()
-        # 信号在RunCore中定义  绑定信号要用RunCore的实例对象来绑定，不能绑定到类上
-        # uiupdate在uiinit类的构造函数中初始化
-        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui2update)
-        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui3update)
-        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui4update)
-
-    def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
-        name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
-                                                                      '*.tif *.tiff *.webp')
-        if len(name[0]):    # 记得改权重为训练后的新权重
-            self.runcore.run(weights='yolov5s.pt', source=name[0])
-        else:
-            pass
-
-    def viddetect(self):
-        name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
-                                                                      '*.mp4 *.mpeg *.mpg *.ts *.wmv')
-        if len(name[0]):
-            self.runcore.run(weights='yolov5s.pt', source=name[0])
-        else:
-            pass
-
-    def camdetect(self):
-        pass
-
-
 class UI_init(QObject):
     # 预留给自定义信号
 
@@ -76,6 +44,38 @@ class UI_init(QObject):
         ui4.setupUi(Mainwindow)
         Mainwindow.show()
         ui4.selectCameraButton.clicked.connect(core.camdetect)
+
+
+class DetectCore(QObject):
+    # 预留给自定义信号
+
+    def __init__(self):
+        super(DetectCore, self).__init__()
+        self.runcore = detect.RunCore()
+        # 信号在RunCore中定义  绑定信号要用RunCore的实例对象来绑定，不能绑定到类上
+        # uiupdate在uiinit类的构造函数中初始化
+        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui2update)
+        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui3update)
+        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui4update)
+
+    def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
+        name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
+                                                                      '*.tif *.tiff *.webp')
+        if len(name[0]):    # 记得改权重为训练后的新权重
+            self.runcore.run(weights='yolov5s.pt', source=name[0])
+        else:
+            pass
+
+    def viddetect(self):
+        name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
+                                                                      '*.mp4 *.mpeg *.mpg *.ts *.wmv')
+        if len(name[0]):
+            self.runcore.run(weights='yolov5s.pt', source=name[0])
+        else:
+            pass
+
+    def camdetect(self):
+        pass
 
 
 class UiUpdate(QObject):
