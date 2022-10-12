@@ -16,12 +16,18 @@ class DetectCore(QObject):
 
     def __init__(self):
         super(DetectCore, self).__init__()
+        self.runcore = detect.RunCore()
+        # 信号在RunCore中定义  绑定信号要用RunCore的实例对象来绑定，不能绑定到类上
+        # uiupdate在uiinit类的构造函数中初始化
+        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui2update)
+        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui3update)
+        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui4update)
 
     def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
         name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
                                                                       '*.tif *.tiff *.webp')
         if len(name[0]):    # 记得改权重为训练后的新权重
-            detect.RunCore.run(weights='yolov5s.pt', source=name[0])
+            self.runcore.run(weights='yolov5s.pt', source=name[0])
         else:
             pass
 
@@ -29,7 +35,7 @@ class DetectCore(QObject):
         name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
                                                                       '*.mp4 *.mpeg *.mpg *.ts *.wmv')
         if len(name[0]):
-            detect.RunCore.run(weights='yolov5s.pt', source=name[0])
+            self.runcore.run(weights='yolov5s.pt', source=name[0])
         else:
             pass
 
@@ -42,6 +48,8 @@ class UI_init(QObject):
 
     def __init__(self):
         super(UI_init, self).__init__()
+        # 实例化UI刷新类
+        self.uiupdate = UiUpdate()
         # 绑定槽函数
         self.initui1()
 
@@ -70,6 +78,20 @@ class UI_init(QObject):
         ui4.selectCameraButton.clicked.connect(core.camdetect)
 
 
+class UiUpdate(QObject):
+    def __init__(self):
+        super(UiUpdate, self).__init__()
+
+    def ui2update(self, signal):
+        pass
+
+    def ui3update(self, signal):
+        pass
+
+    def ui4update(self, signal):
+        pass
+
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
@@ -78,7 +100,8 @@ if __name__ == '__main__':
     ui1 = UI.ui_1.Ui_MainWindow()
     ui1.setupUi(Mainwindow)
 
-    ui = UI_init()   # 此处实例化UI_init必须要将实例赋值给一个变量，否则构造函数初始化的信号连接将会被回收/中断
+    uiinit = UI_init()   # 此处实例化UI_init必须要将实例赋值给一个变量，否则构造函数初始化的信号连接将会被回收/中断
     core = DetectCore()
+
     Mainwindow.show()
     sys.exit(app.exec())

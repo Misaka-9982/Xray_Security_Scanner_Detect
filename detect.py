@@ -50,11 +50,14 @@ from utils.torch_utils import select_device, time_sync
 # @torch.no_grad()  # 减少内存/显存消耗，理论上加快计算，但是实测不明显甚至有反作用
 # diy就注释掉了
 class RunCore(QObject):
+    imgresultsignal = pyqtSignal(list)
+    vidresultsignal = pyqtSignal(list)
+    # camresultsignal
+
     def __init__(self):
         super(RunCore, self).__init__()
 
-    @staticmethod
-    def run(
+    def run(self,
             weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
             source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
             data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
@@ -163,6 +166,7 @@ class RunCore(QObject):
                         s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
                         print('c:', c, 'int(c)', int(c))
                         print('names:', names[int(c)])
+                        self.imgresultsignal.emit([names[int(c)]])
 
                     '''下方(星号)*xyxy用于在列表/元组等结构中解包，接受任意多个变量
                         x, *y, z=[1,2,3,4,5]  ->  x=1, z=5, y=[2,3,4]'''
