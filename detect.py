@@ -205,6 +205,7 @@ class RunCore(QObject):
                         # 发射标记后的图片和路径
                         self.imgresultsignal.emit([im0, save_path])
                     else:  # 'video' or 'stream'
+                        self.vidresultsignal.emit(['start'])
                         if vid_path[i] != save_path:  # new video
                             vid_path[i] = save_path
                             if isinstance(vid_writer[i], cv2.VideoWriter):

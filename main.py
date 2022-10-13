@@ -1,5 +1,6 @@
 import sys
 import threading
+import queue
 
 import cv2
 from PIL import Image, ImageQt
@@ -95,6 +96,7 @@ class UiUpdate(QObject):
         self.w = 0
         self.h = 0
         self.timer = QTimer()   # 定义计时器
+        self.framebuffer = queue.Queue()
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
@@ -106,16 +108,9 @@ class UiUpdate(QObject):
             raise Exception('未知错误')
 
     def ui3update(self, signal):
-        def openframe():
-            frame = cv2.cvtColor(signal[0], cv2.COLOR_BGR2RGB)
-            height, width, bytesPerComponent = frame.shape
-            bytesPerLine = bytesPerComponent * width
-            qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
-            uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
-
         def vidstart():
             if not self.timer.isActive():
-                self.timer.timeout.connect(openframe)
+                self.timer.timeout.connect(self.vidframeupdate)
                 self.timer.start(100)   # 100ms  后续可以根据帧数计算
             else:
                 pass
@@ -124,19 +119,26 @@ class UiUpdate(QObject):
         def vidstop():
             self.timer.stop()
 
-        if isinstance(signal[0], np.ndarray):
+        if signal[0] == 'start':
             vidstart()
+        elif isinstance(signal[0], np.ndarray):
+            self.framebuffer.put(signal[0], block=False)
         elif signal[0] == 'finished':
-            self.timer.stop()
-
-
+            vidstop()
+            self.framebuffer = queue.Queue()
 
     def vidframeupdate(self):
-        pass
+        if not self.framebuffer.empty():
+            frame = cv2.cvtColor(self.framebuffer.get(block=False), cv2.COLOR_BGR2RGB)
+            height, width, bytesPerComponent = frame.shape
+            bytesPerLine = bytesPerComponent * width
+            qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
+            uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
 
 
 
-    def ui4update(self, signal):
+
+def ui4update(self, signal):
         pass
 
 
