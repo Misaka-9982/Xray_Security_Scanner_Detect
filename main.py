@@ -70,7 +70,7 @@ class DetectCore(QObject):
                                                                       '*.tif *.tiff *.webp')
         if len(name[0]):    # 记得改权重为训练后的新权重
             uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
-            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0]})
+            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': False})
             runthread.start()
         else:
             pass
@@ -103,7 +103,12 @@ class UiUpdate(QObject):
         if isinstance(signal[0], str):  # 标签名
             uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(signal[0]))
         elif isinstance(signal[0], np.ndarray):  # 图片和路径
-            uiinit.ui2.imageLabel.setPixmap(QPixmap(signal[1]))  # 图片文件路径
+            # 如下是从内存加载ndarray图片到Qpixmap显示在qlabel的流程  测试稳定
+            frame = cv2.cvtColor(signal[0], cv2.COLOR_BGR2RGB)
+            height, width, bytesPerComponent = frame.shape
+            bytesPerLine = bytesPerComponent * width
+            qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
+            uiinit.ui2.imageLabel.setPixmap(QPixmap.fromImage(qimage))
         else:
             raise Exception('未知错误')
 
@@ -129,7 +134,7 @@ class UiUpdate(QObject):
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
     def vidframeupdate(self):
-        try:   # 如果播放速率大于识别速率会报队列空exception
+        try:   # 如果播放速率大于识别速率会报队列空exception   # 可以后期做一个识别速率过低的提示框
             t_frame = self.framebuffer.get(block=False)
             if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
                 frame = cv2.cvtColor(t_frame, cv2.COLOR_BGR2RGB)

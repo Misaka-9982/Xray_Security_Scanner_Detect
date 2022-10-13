@@ -180,8 +180,8 @@ class RunCore(QObject):
                             line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
                             with open(f'{txt_path}.txt', 'a') as f:
                                 f.write(('%g ' * len(line)).rstrip() % line + '\n')
-
-                        if save_img or save_crop or view_img:  # Add bbox to image
+                        # 给图片加标记框                                # 加入True保证图片一定有标记框
+                        if save_img or save_crop or view_img or True:  # Add bbox to image
                             c = int(cls)  # integer class
                             label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                             annotator.box_label(xyxy, label, color=colors(c, True))
@@ -199,7 +199,7 @@ class RunCore(QObject):
                     cv2.waitKey(1)  # 1 millisecond
 
                 # Save results (image with detections)
-                if dataset.mode == 'image:':
+                if dataset.mode == 'image':
                     self.imgresultsignal.emit([im0, save_path])
                 else:       # 'video' or 'stream'
                     self.vidresultsignal.emit(['start'])
