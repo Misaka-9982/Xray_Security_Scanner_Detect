@@ -75,6 +75,7 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.cameraLabel.sizePolicy().hasHeightForWidth())
         self.cameraLabel.setSizePolicy(sizePolicy)
         self.cameraLabel.setMaximumSize(QtCore.QSize(900, 730))
+        self.cameraLabel.setScaledContents(True)
         self.cameraLabel.setObjectName("cameraLabel")
         self.horizontalLayout_3.addWidget(self.cameraLabel)
         self.verticalLayout_2.addLayout(self.horizontalLayout_3)

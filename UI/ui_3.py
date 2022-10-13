@@ -81,6 +81,7 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.videoLabel.sizePolicy().hasHeightForWidth())
         self.videoLabel.setSizePolicy(sizePolicy)
         self.videoLabel.setMaximumSize(QtCore.QSize(900, 730))
+        self.videoLabel.setScaledContents(True)
         self.videoLabel.setObjectName("videoLabel")
         self.horizontalLayout_4.addWidget(self.videoLabel)
         self.gridLayout.addLayout(self.horizontalLayout_4, 1, 1, 2, 1)
