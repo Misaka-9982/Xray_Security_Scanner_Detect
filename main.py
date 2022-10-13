@@ -94,18 +94,21 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
         pass
 
 
-class UiUpdate(QObject):
+class UiUpdate(QWidget):
     def __init__(self):
         super(UiUpdate, self).__init__()
         self.fps = 0
         self.w = 0
         self.h = 0
         self.timer = QTimer()   # 定义计时器
-        self.framebuffer = queue.Queue()
+        self.framebuffer = queue.Queue()  # 识别结果缓冲区
+        self.allresultlabel = []   # 视频所有出现过的标签集合
+        self.isslowwarn = False    # 识别速度过慢提示标签
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
         if isinstance(signal[0], str):  # 结果列表
+            uiinit.ui2.detectResultListImg.clear()
             for result in signal:
                 uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result))
         elif isinstance(signal[0], np.ndarray):  # 图片和路径
@@ -122,7 +125,9 @@ class UiUpdate(QObject):
         def vidstart():
             if not self.timer.isActive():
                 self.timer.timeout.connect(self.vidframeupdate)
-                self.timer.start(100)   # 100ms  不能小于帧生成时间
+                self.timer.start(100)   # 100ms / 10fps
+                uiinit.ui3.detectResultListVid.clear()
+                uiinit.ui3.videolistlabel.setText('实时结果：')
             else:
                 pass
 
@@ -131,7 +136,11 @@ class UiUpdate(QObject):
             self.timer.stop()
             uiinit.ui3.videoLabel.setText('视频播放结束')
             uiinit.ui3.detectResultListVid.clear()
-            # 加一个统计视频中出现过的物品
+            # 显示所有出现过的物品
+            uiinit.ui3.videolistlabel.setText('最终结果：')
+            self.allresultlabel = list(set(self.allresultlabel))  # 利用集合去重
+            for result in self.allresultlabel:
+                uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result))
 
         if isinstance(signal[0], str) and signal[0] == 'start':
             vidstart()
@@ -143,6 +152,11 @@ class UiUpdate(QObject):
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
     def vidframeupdate(self):
+        def slowwarn():
+            QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于10fps，可能导致实时视频较卡顿，'
+                                            '请安装显卡加速环境或使用较快的低精度模型', QMessageBox.Ok)
+            self.isslowwarn = True
+
         try:   # 如果播放速率大于识别速率会报队列空exception   # 可以后期做一个识别速率过低的提示框
             resultdata = self.framebuffer.get(block=False)
             t_frame = resultdata[0]
@@ -156,12 +170,17 @@ class UiUpdate(QObject):
                 # 更新标签列表
                 uiinit.ui3.detectResultListVid.clear()
                 for result in resultlist:
+                    self.allresultlabel.append(result)
                     uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result))
             else:   # 队列空 且已经识别完毕，不是等待识别状态
                 vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
                 vidstopfunc()
         except queue.Empty:
-            pass
+            if not self.isslowwarn:
+                slowwarn()
+
+
+
 
 
 
