@@ -70,20 +70,23 @@ class DetectCore(QObject):
                                                                       '*.tif *.tiff *.webp')
         if len(name[0]):    # 记得改权重为训练后的新权重
             uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
-            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': False})
+            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
             runthread.start()
         else:
             pass
 
     def viddetect(self):
-        name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
-                                                                      '*.mp4 *.mpeg *.mpg *.ts *.wmv')
-        if len(name[0]):
-            uiinit.ui3.detectResultListVid.clear()
-            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
-            runthread.start()
+        if not uiinit.uiupdate.timer.isActive():
+            name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
+                                                                          '*.mp4 *.mpeg *.mpg *.ts *.wmv')
+            if len(name[0]):
+                uiinit.ui3.detectResultListVid.clear()
+                runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
+                runthread.start()
+            else:
+                pass
         else:
-            pass
+            print('将来UI弹窗提示视频正在播放！')
 
     def camdetect(self):
         pass
@@ -100,8 +103,9 @@ class UiUpdate(QObject):
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
-        if isinstance(signal[0], str):  # 标签名
-            uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(signal[0]))
+        if isinstance(signal[0], str):  # 结果列表
+            for result in signal:
+                uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result))
         elif isinstance(signal[0], np.ndarray):  # 图片和路径
             # 如下是从内存加载ndarray图片到Qpixmap显示在qlabel的流程  测试稳定
             frame = cv2.cvtColor(signal[0], cv2.COLOR_BGR2RGB)
@@ -126,8 +130,8 @@ class UiUpdate(QObject):
 
         if isinstance(signal[0], str) and signal[0] == 'start':
             vidstart()
-        elif isinstance(signal[0], np.ndarray):
-            self.framebuffer.put(signal[0], block=False)
+        elif isinstance(signal[0], np.ndarray): # signal[0]是图片，signal[1]是所有目标标签
+            self.framebuffer.put([signal[0], signal[1]], block=False)
         elif isinstance(signal[0], str) and signal[0] == 'finished':
             self.framebuffer.put('finished')
         else:   # 仅为了调用vidstop函数传任意参数时
@@ -135,13 +139,19 @@ class UiUpdate(QObject):
 
     def vidframeupdate(self):
         try:   # 如果播放速率大于识别速率会报队列空exception   # 可以后期做一个识别速率过低的提示框
-            t_frame = self.framebuffer.get(block=False)
+            resultdata = self.framebuffer.get(block=False)
+            t_frame = resultdata[0]
+            resultlist = resultdata[1]
             if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
                 frame = cv2.cvtColor(t_frame, cv2.COLOR_BGR2RGB)
                 height, width, bytesPerComponent = frame.shape
                 bytesPerLine = bytesPerComponent * width
                 qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
                 uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
+                # 更新标签列表
+                uiinit.ui3.detectResultListVid.clear()
+                for result in resultlist:
+                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result))
             else:   # 队列空 且已经识别完毕，不是等待识别状态
                 vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
                 vidstopfunc()

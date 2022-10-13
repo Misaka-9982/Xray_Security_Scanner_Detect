@@ -158,6 +158,7 @@ class RunCore(QObject):
                 gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
                 imc = im0.copy() if save_crop else im0  # for save_crop
                 annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+                resultlist = []  # 用于发射每帧结果
                 if len(det):
                     # Rescale boxes from img_size to im0 size
                     det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
@@ -168,8 +169,7 @@ class RunCore(QObject):
                         s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
                         print('c:', c, 'int(c)', int(c))
                         print('names:', names[int(c)])
-                        if dataset.mode == 'image':
-                            self.imgresultsignal.emit([names[int(c)]])
+                        resultlist.append(names[int(c)])
 
                     '''下方(星号)*xyxy用于在列表/元组等结构中解包，接受任意多个变量
                         x, *y, z=[1,2,3,4,5]  ->  x=1, z=5, y=[2,3,4]'''
@@ -197,13 +197,15 @@ class RunCore(QObject):
                         cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
                     cv2.imshow(str(p), im0)
                     cv2.waitKey(1)  # 1 millisecond
-
-                # Save results (image with detections)
+                # 发射数据
                 if dataset.mode == 'image':
-                    self.imgresultsignal.emit([im0, save_path])
+                    self.imgresultsignal.emit(resultlist)
+                    self.imgresultsignal.emit([im0])
                 else:       # 'video' or 'stream'
                     self.vidresultsignal.emit(['start'])
-                    self.vidresultsignal.emit([im0])
+                    self.vidresultsignal.emit([im0, resultlist])
+
+                # Save results (image with detections)
                 if save_img:
                     if dataset.mode == 'image':
                         cv2.imwrite(save_path, im0)
