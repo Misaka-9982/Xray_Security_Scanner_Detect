@@ -1,11 +1,14 @@
 import sys
+import threading
+
+import cv2
 from PIL import Image, ImageQt
 import numpy as np
 
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 from PyQt5.QtWidgets import QFileDialog, QListWidgetItem
 from PyQt5.QtWidgets import QMainWindow, QApplication
-from PyQt5.QtGui import QPixmap, QImageReader
+from PyQt5.QtGui import QPixmap, QImageReader, QImage
 
 import UI.ui_1
 import UI.ui_2
@@ -58,15 +61,16 @@ class DetectCore(QObject):
         # 信号在RunCore中定义  绑定信号要用RunCore的实例对象来绑定，不能绑定到类上
         # uiupdate在uiinit类的构造函数中初始化
         self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui2update)
-        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui3update)
-        self.runcore.imgresultsignal.connect(uiinit.uiupdate.ui4update)
+        self.runcore.vidresultsignal.connect(uiinit.uiupdate.ui3update)
+        # self.runcore.camresultsignal.connect(uiinit.uiupdate.ui4update)
 
     def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
         name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
                                                                       '*.tif *.tiff *.webp')
         if len(name[0]):    # 记得改权重为训练后的新权重
             uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
-            self.runcore.run(weights='yolov5s.pt', source=name[0])
+            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0]})
+            runthread.start()
         else:
             pass
 
@@ -75,7 +79,8 @@ class DetectCore(QObject):
                                                                       '*.mp4 *.mpeg *.mpg *.ts *.wmv')
         if len(name[0]):
             uiinit.ui3.detectResultListVid.clear()
-            self.runcore.run(weights='yolov5s.pt', source=name[0])
+            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0]})
+            runthread.start()
         else:
             pass
 
@@ -86,16 +91,50 @@ class DetectCore(QObject):
 class UiUpdate(QObject):
     def __init__(self):
         super(UiUpdate, self).__init__()
+        self.fps = 0
+        self.w = 0
+        self.h = 0
+        self.timer = QTimer()   # 定义计时器
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
-        if isinstance(signal[0], str):
+        if isinstance(signal[0], str):  # 标签名
             uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(signal[0]))
-        elif isinstance(signal[0], np.ndarray):
+        elif isinstance(signal[0], np.ndarray):  # 图片和路径
             uiinit.ui2.imageLabel.setPixmap(QPixmap(signal[1]))  # 图片文件路径
+        else:
+            raise Exception('未知错误')
 
     def ui3update(self, signal):
+        def openframe():
+            frame = cv2.cvtColor(signal[0], cv2.COLOR_BGR2RGB)
+            height, width, bytesPerComponent = frame.shape
+            bytesPerLine = bytesPerComponent * width
+            qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
+            uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
+
+        def vidstart():
+            if not self.timer.isActive():
+                self.timer.timeout.connect(openframe)
+                self.timer.start(100)   # 100ms  后续可以根据帧数计算
+            else:
+                pass
+
+        # 视频结束或按下停止时调用  注意按下停止时还要停止后台检测线程
+        def vidstop():
+            self.timer.stop()
+
+        if isinstance(signal[0], np.ndarray):
+            vidstart()
+        elif signal[0] == 'finished':
+            self.timer.stop()
+
+
+
+    def vidframeupdate(self):
         pass
+
+
 
     def ui4update(self, signal):
         pass

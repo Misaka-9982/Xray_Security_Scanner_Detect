@@ -168,7 +168,8 @@ class RunCore(QObject):
                         s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
                         print('c:', c, 'int(c)', int(c))
                         print('names:', names[int(c)])
-                        self.imgresultsignal.emit([names[int(c)]])
+                        if dataset.mode == 'image':
+                            self.imgresultsignal.emit([names[int(c)]])
 
                     '''下方(星号)*xyxy用于在列表/元组等结构中解包，接受任意多个变量
                         x, *y, z=[1,2,3,4,5]  ->  x=1, z=5, y=[2,3,4]'''
@@ -216,12 +217,14 @@ class RunCore(QObject):
                                 fps, w, h = 30, im0.shape[1], im0.shape[0]
                             save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
                             vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+                        self.vidresultsignal.emit([im0])
                         vid_writer[i].write(im0)
 
             # Print time (inference-only)
             LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
 
         # Print results
+        self.vidresultsignal.emit(['finished'])
         t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
         LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
         if save_txt or save_img:
