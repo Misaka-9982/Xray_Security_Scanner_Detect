@@ -7,8 +7,7 @@ from PIL import Image, ImageQt
 import numpy as np
 
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
-from PyQt5.QtWidgets import QFileDialog, QListWidgetItem
-from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap, QImageReader, QImage
 
 import UI.ui_1
@@ -53,7 +52,7 @@ class UI_init(QObject):
         self.ui4.selectCameraButton.clicked.connect(core.camdetect)
 
 
-class DetectCore(QObject):
+class DetectCore(QWidget):  # 为了messagebox继承自QWidget
     # 预留给自定义信号
 
     def __init__(self):
@@ -66,17 +65,20 @@ class DetectCore(QObject):
         # self.runcore.camresultsignal.connect(uiinit.uiupdate.ui4update)
 
     def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
-        name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
-                                                                      '*.tif *.tiff *.webp')
-        if len(name[0]):    # 记得改权重为训练后的新权重
-            uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
-            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
-            runthread.start()
+        if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
+            name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
+                                                                          '*.tif *.tiff *.webp')
+            if len(name[0]):    # 记得改权重为训练后的新权重
+                uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
+                runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
+                runthread.start()
+            else:
+                pass
         else:
-            pass
+            QMessageBox.warning(self, '警告', '当前有视频正在识别，请关闭后再选择新视频！', QMessageBox.Ok)
 
-    def viddetect(self):
-        if not uiinit.uiupdate.timer.isActive():
+    def viddetect(self):  # 后台识别线程已停止且视频播放结束
+        if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
             name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
                                                                           '*.mp4 *.mpeg *.mpg *.ts *.wmv')
             if len(name[0]):
@@ -86,7 +88,7 @@ class DetectCore(QObject):
             else:
                 pass
         else:
-            print('将来UI弹窗提示视频正在播放！')
+            QMessageBox.warning(self, '警告', '当前有视频正在识别，请关闭后再选择新视频！', QMessageBox.Ok)
 
     def camdetect(self):
         pass
@@ -127,6 +129,9 @@ class UiUpdate(QObject):
         # 视频结束或按下停止时调用  注意按下停止时还要停止后台检测线程
         def vidstop():
             self.timer.stop()
+            uiinit.ui3.videoLabel.setText('视频播放结束')
+            uiinit.ui3.detectResultListVid.clear()
+            # 加一个统计视频中出现过的物品
 
         if isinstance(signal[0], str) and signal[0] == 'start':
             vidstart()

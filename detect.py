@@ -58,6 +58,7 @@ class RunCore(QObject):
 
     def __init__(self):
         super(RunCore, self).__init__()
+        self.runstatus = False
 
     def run(self,
             weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
@@ -87,6 +88,7 @@ class RunCore(QObject):
             half=False,  # use FP16 half-precision inference
             dnn=False,  # use OpenCV DNN for ONNX inference
     ):
+        self.runstatus = True
         source = str(source)
         save_img = not nosave and not source.endswith('.txt')  # save inference images
         is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -236,6 +238,7 @@ class RunCore(QObject):
             LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
         if update:
             strip_optimizer(weights)  # update model (to fix SourceChangeWarning)
+        self.runstatus = False
 
 
 def parse_opt():
