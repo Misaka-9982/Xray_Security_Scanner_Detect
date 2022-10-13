@@ -171,7 +171,6 @@ class RunCore(QObject):
                         s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
                         print('c:', c, 'int(c)', int(c))
                         print('names:', names[int(c)])
-                        resultlist.append(names[int(c)])
 
                     '''下方(星号)*xyxy用于在列表/元组等结构中解包，接受任意多个变量
                         x, *y, z=[1,2,3,4,5]  ->  x=1, z=5, y=[2,3,4]'''
@@ -182,11 +181,13 @@ class RunCore(QObject):
                             line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
                             with open(f'{txt_path}.txt', 'a') as f:
                                 f.write(('%g ' * len(line)).rstrip() % line + '\n')
+
                         # 给图片加标记框                                # 加入True保证图片一定有标记框
                         if save_img or save_crop or view_img or True:  # Add bbox to image
                             c = int(cls)  # integer class
                             label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                             annotator.box_label(xyxy, label, color=colors(c, True))
+                            resultlist.append([names[c], conf])
                         if save_crop:
                             save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 

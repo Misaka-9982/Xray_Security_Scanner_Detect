@@ -102,16 +102,16 @@ class UiUpdate(QWidget):
         self.h = 0
         self.timer = QTimer()   # 定义计时器
         self.framebuffer = queue.Queue()  # 识别结果缓冲区
-        self.allresultlabel = []   # 视频所有出现过的标签集合
+        self.allresult = []        # 标签和置信度
         self.isslowwarn = False    # 识别速度过慢提示标签
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
-        if isinstance(signal[0], str):  # 结果列表
+        if isinstance(signal[0], list):  # 结果列表
             uiinit.ui2.detectResultListImg.clear()
-            for result in signal:
-                uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result))
-        elif isinstance(signal[0], np.ndarray):  # 图片和路径
+            for result, conf in signal:
+                uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+        elif isinstance(signal[0], np.ndarray):  # 图片
             # 如下是从内存加载ndarray图片到Qpixmap显示在qlabel的流程  测试稳定
             frame = cv2.cvtColor(signal[0], cv2.COLOR_BGR2RGB)
             height, width, bytesPerComponent = frame.shape
@@ -138,26 +138,43 @@ class UiUpdate(QWidget):
             uiinit.ui3.detectResultListVid.clear()
             # 显示所有出现过的物品
             uiinit.ui3.videolistlabel.setText('最终结果：')
-            self.allresultlabel = list(set(self.allresultlabel))  # 利用集合去重
-            for result in self.allresultlabel:
-                uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result))
+            # 找出每类物品中最高置信度的算法
+            self.allresult.sort(key=lambda x: x[0])  # 将同类标签放到一起
+            t_max = 0
+            t_lable = None
+            endresult = []
+            for result in self.allresult:
+                if t_lable == result[0] and t_max < result[1]:
+                    t_max = result[1]
+                elif t_lable != result[0]:  # 不能用else，会把同类不大于的放进来
+                    if t_lable is not None:
+                        endresult.append([t_lable, t_max])
+                    t_lable = result[0]
+                    t_max = result[1]
+            endresult.append([t_lable, t_max])
+            for result, conf in endresult:
+                uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
 
+        # 开始信号
         if isinstance(signal[0], str) and signal[0] == 'start':
             vidstart()
-        elif isinstance(signal[0], np.ndarray): # signal[0]是图片，signal[1]是所有目标标签
+        # 帧和识别结果
+        elif isinstance(signal[0], np.ndarray):  # signal[0]是图片，signal[1]是所有目标标签
             self.framebuffer.put([signal[0], signal[1]], block=False)
+        # 结束信号
         elif isinstance(signal[0], str) and signal[0] == 'finished':
             self.framebuffer.put('finished')
-        else:   # 仅为了调用vidstop函数传任意参数时
+        # 仅为了调用vidstop函数传任意参数时
+        else:
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
-    def vidframeupdate(self):
+    def vidframeupdate(self):   # 收到计时器timeout信号时触发
         def slowwarn():
-            QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于10fps，可能导致实时视频较卡顿，'
+            QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于10fps，可能导致视频较卡顿，'
                                             '请安装显卡加速环境或使用较快的低精度模型', QMessageBox.Ok)
             self.isslowwarn = True
 
-        try:   # 如果播放速率大于识别速率会报队列空exception   # 可以后期做一个识别速率过低的提示框
+        try:   # 如果播放速率大于识别速率会报队列空exception
             resultdata = self.framebuffer.get(block=False)
             t_frame = resultdata[0]
             resultlist = resultdata[1]
@@ -169,9 +186,12 @@ class UiUpdate(QWidget):
                 uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
                 # 更新标签列表
                 uiinit.ui3.detectResultListVid.clear()
-                for result in resultlist:
-                    self.allresultlabel.append(result)
-                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result))
+                for result, conf in resultlist:
+                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+                    # 统计最终标签列表  费时部分在stop函数执行
+                    self.allresult.append([result, conf])
+
+
             else:   # 队列空 且已经识别完毕，不是等待识别状态
                 vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
                 vidstopfunc()
