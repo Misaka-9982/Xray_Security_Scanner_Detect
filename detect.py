@@ -199,13 +199,15 @@ class RunCore(QObject):
                     cv2.waitKey(1)  # 1 millisecond
 
                 # Save results (image with detections)
+                if dataset.mode == 'image:':
+                    self.imgresultsignal.emit([im0, save_path])
+                else:       # 'video' or 'stream'
+                    self.vidresultsignal.emit(['start'])
+                    self.vidresultsignal.emit([im0])
                 if save_img:
                     if dataset.mode == 'image':
                         cv2.imwrite(save_path, im0)
-                        # 发射标记后的图片和路径
-                        self.imgresultsignal.emit([im0, save_path])
                     else:  # 'video' or 'stream'
-                        self.vidresultsignal.emit(['start'])
                         if vid_path[i] != save_path:  # new video
                             vid_path[i] = save_path
                             if isinstance(vid_writer[i], cv2.VideoWriter):
@@ -218,7 +220,6 @@ class RunCore(QObject):
                                 fps, w, h = 30, im0.shape[1], im0.shape[0]
                             save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
                             vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                        self.vidresultsignal.emit([im0])
                         vid_writer[i].write(im0)
 
             # Print time (inference-only)
@@ -271,7 +272,7 @@ def parse_opt():
 
 def main(opt):
     check_requirements(exclude=('tensorboard', 'thop'))
-    RunCore.run(**vars(opt))
+    RunCore().run(**vars(opt))
 
 
 if __name__ == "__main__":

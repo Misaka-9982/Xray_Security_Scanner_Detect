@@ -80,7 +80,7 @@ class DetectCore(QObject):
                                                                       '*.mp4 *.mpeg *.mpg *.ts *.wmv')
         if len(name[0]):
             uiinit.ui3.detectResultListVid.clear()
-            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0]})
+            runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
             runthread.start()
         else:
             pass
@@ -111,7 +111,7 @@ class UiUpdate(QObject):
         def vidstart():
             if not self.timer.isActive():
                 self.timer.timeout.connect(self.vidframeupdate)
-                self.timer.start(100)   # 100ms  后续可以根据帧数计算
+                self.timer.start(100)   # 100ms  不能小于帧生成时间
             else:
                 pass
 
@@ -119,21 +119,29 @@ class UiUpdate(QObject):
         def vidstop():
             self.timer.stop()
 
-        if signal[0] == 'start':
+        if isinstance(signal[0], str) and signal[0] == 'start':
             vidstart()
         elif isinstance(signal[0], np.ndarray):
             self.framebuffer.put(signal[0], block=False)
-        elif signal[0] == 'finished':
-            vidstop()
-            self.framebuffer = queue.Queue()
+        elif isinstance(signal[0], str) and signal[0] == 'finished':
+            self.framebuffer.put('finished')
+        else:   # 仅为了调用vidstop函数传任意参数时
+            return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
     def vidframeupdate(self):
-        if not self.framebuffer.empty():
-            frame = cv2.cvtColor(self.framebuffer.get(block=False), cv2.COLOR_BGR2RGB)
-            height, width, bytesPerComponent = frame.shape
-            bytesPerLine = bytesPerComponent * width
-            qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
-            uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
+        try:   # 如果播放速率大于识别速率会报队列空exception
+            t_frame = self.framebuffer.get(block=False)
+            if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
+                frame = cv2.cvtColor(t_frame, cv2.COLOR_BGR2RGB)
+                height, width, bytesPerComponent = frame.shape
+                bytesPerLine = bytesPerComponent * width
+                qimage = QImage(frame.data, width, height, bytesPerLine, QImage.Format_RGB888)
+                uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
+            else:   # 队列空 且已经识别完毕，不是等待识别状态
+                vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
+                vidstopfunc()
+        except queue.Empty:
+            pass
 
 
 
