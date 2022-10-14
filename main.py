@@ -114,7 +114,6 @@ class UiUpdate(QWidget):
         self.framebuffer = queue.Queue()  # 识别结果缓冲区
         self.allresult = []        # 标签和置信度
         self.isslowwarn = False    # 识别速度过慢提示标签
-        self.vidstarting = False   # 视频已真正开始播放标签，在第一帧开始刷新时置为真
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
@@ -169,9 +168,11 @@ class UiUpdate(QWidget):
                         t_max = result[1]
                 endresult.append([t_lable, t_max])  # endresult中t_table无重复的
                 endresult.sort(reverse=True, key=lambda x: x[1])  # 出现过概率大的往前排
-                for result, conf in endresult:
-                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
-
+                try:
+                    for result, conf in endresult:
+                        uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+                except TypeError:  # 第一帧还未识别完成时就终止，result为None会导致主线程崩溃
+                    pass
 
         # 开始信号
         if isinstance(signal[0], str) and signal[0] == 'start':
@@ -194,7 +195,6 @@ class UiUpdate(QWidget):
 
         try:   # 如果播放速率大于识别速率会报队列空exception
             resultdata = self.framebuffer.get(block=False)
-            self.vidstarting = True
             t_frame = resultdata[0]
             resultlist = resultdata[1]
             if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
