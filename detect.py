@@ -209,7 +209,7 @@ class RunCore(QObject):
 
                 # 发射数据
                 if dataset.mode == 'image':
-                    self.imgresultsignal.emit(resultlist)
+                    self.imgresultsignal.emit([resultlist])
                     self.imgresultsignal.emit([im0])
                 else:       # 'video' or 'stream'
                     self.vidresultsignal.emit(['start'])

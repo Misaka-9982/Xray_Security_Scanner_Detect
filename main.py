@@ -119,7 +119,8 @@ class UiUpdate(QWidget):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
         if isinstance(signal[0], list):  # 结果列表
             uiinit.ui2.detectResultListImg.clear()
-            for result, conf in signal:
+            signal[0].sort(reverse=True, key=lambda x: x[1])  # 按置信度降序
+            for result, conf in signal[0]:
                 uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
         elif isinstance(signal[0], np.ndarray):  # 图片
             # 如下是从内存加载ndarray图片到Qpixmap显示在qlabel的流程  测试稳定
