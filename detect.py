@@ -27,7 +27,10 @@ Usage - formats:
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
+
+import numpy
 from PIL import Image
 
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -126,6 +129,8 @@ class RunCore(QObject):
         # Run inference
         model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
         seen, windows, dt = 0, [], [0.0, 0.0, 0.0]
+
+        recentfivetime = []   # 近五帧检测用时
         for path, im, im0s, vid_cap, s in dataset:  # 图片读取使用cv2.imread()，在dataset对象的类中，迭代器函数__next__()中调用
             t1 = time_sync()
             im = torch.from_numpy(im).to(device)
@@ -205,6 +210,8 @@ class RunCore(QObject):
                         cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
                     cv2.imshow(str(p), im0)
                     cv2.waitKey(1)  # 1 millisecond
+
+                # 接受线程终止信号
                 if self.needstop:
                     self.stopthread()
 
@@ -213,8 +220,17 @@ class RunCore(QObject):
                     self.imgresultsignal.emit([resultlist])
                     self.imgresultsignal.emit([im0])
                 else:       # 'video' or 'stream'
-                    self.vidresultsignal.emit(['start'])
+                    self.vidresultsignal.emit(['start', vid_cap.get(cv2.CAP_PROP_FPS)])
                     self.vidresultsignal.emit([im0, resultlist])
+                    # 检测速度快于播放速度时，防止爆缓冲区，占大量内存
+                    recentfivetime.append(t3-t2)
+                    mean = 0
+                    if len(recentfivetime) == 20:
+                        mean = numpy.mean(recentfivetime)  # 近五帧平均检测用时
+                        recentfivetime = []   # 重置
+                        playtime = 1 / vid_cap.get(cv2.CAP_PROP_FPS)  # second
+                        if mean < playtime:
+                            time.sleep((playtime - mean) * 15)  # 20帧一补时间，少补五帧保证检测快于播放
 
                 # Save results (image with detections)
                 if save_img:

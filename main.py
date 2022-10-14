@@ -135,9 +135,9 @@ class UiUpdate(QWidget):
             raise Exception('未知错误')
 
     def ui3update(self, signal):
-        def vidstart():
+        def vidstart(fps):
             if not self.timer.isActive():
-                self.timer.start(100)   # 100ms / 10fps  启动帧刷新计时器
+                self.timer.start(int((1 / fps) * 1000))   # 按原视频帧速率，启动帧刷新计时器
                 uiinit.ui3.detectResultListVid.clear()
                 uiinit.ui3.videolistlabel.setText('实时结果：')
                 self.allresult = []   # 清除上一次检测结果
@@ -180,10 +180,11 @@ class UiUpdate(QWidget):
 
         # 开始信号
         if isinstance(signal[0], str) and signal[0] == 'start':
-            vidstart()
+            vidstart(signal[1])   # 传入fps
         # 帧和识别结果
         elif isinstance(signal[0], np.ndarray):  # signal[0]是图片，signal[1]是所有目标标签
             self.framebuffer.put([signal[0], signal[1]], block=False)
+            print(self.framebuffer.qsize())
         # 结束信号
         elif isinstance(signal[0], str) and signal[0] == 'finished':
             self.framebuffer.put('finished')
@@ -193,7 +194,7 @@ class UiUpdate(QWidget):
 
     def vidframeupdate(self):   # 收到计时器timeout信号时触发
         def slowwarn():                               # 缓冲区过大问题
-            QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于10fps，可能导致视频较卡顿，'
+            QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于原视频帧速率，可能导致视频较卡顿，'
                                             '请安装显卡加速环境或使用较快的低精度模型', QMessageBox.Ok)
             self.isslowwarn = True
 
