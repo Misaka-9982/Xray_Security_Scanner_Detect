@@ -29,6 +29,7 @@ import os
 import sys
 import time
 from pathlib import Path
+import queue
 
 import numpy
 from PIL import Image
@@ -63,6 +64,7 @@ class RunCore(QObject):
         super(RunCore, self).__init__()
         self.runstatus = False
         self.needstop = False
+        self.framebuffer = queue.Queue()  # 识别结果缓冲区
 
     def stopthread(self):
         raise Exception('检测线程被停止')
@@ -132,6 +134,7 @@ class RunCore(QObject):
 
         recentfivetime = []   # 近五帧检测用时
         for path, im, im0s, vid_cap, s in dataset:  # 图片读取使用cv2.imread()，在dataset对象的类中，迭代器函数__next__()中调用
+            fps = vid_cap.get(cv2.CAP_PROP_FPS)
             t1 = time_sync()
             im = torch.from_numpy(im).to(device)
             im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
@@ -220,18 +223,11 @@ class RunCore(QObject):
                     self.imgresultsignal.emit([resultlist])
                     self.imgresultsignal.emit([im0])
                 else:       # 'video' or 'stream'
-                    self.vidresultsignal.emit(['start', vid_cap.get(cv2.CAP_PROP_FPS)])
+                    self.vidresultsignal.emit(['start', fps])
                     self.vidresultsignal.emit([im0, resultlist])
                     # 检测速度快于播放速度时，防止爆缓冲区，占大量内存
-                    recentfivetime.append(t3-t2)
-                    mean = 0
-                    if len(recentfivetime) == 20:
-                        mean = numpy.mean(recentfivetime)  # 近五帧平均检测用时
-                        recentfivetime = []   # 重置
-                        playtime = 1 / vid_cap.get(cv2.CAP_PROP_FPS)  # second
-                        if mean < playtime:
-                            time.sleep((playtime - mean) * 15)  # 20帧一补时间，少补五帧保证检测快于播放
-
+                    if self.framebuffer.qsize() > fps * 4:  # 缓冲区缓冲了超过四秒的播放内容
+                        time.sleep(2)  # 就暂停两秒
                 # Save results (image with detections)
                 if save_img:
                     if dataset.mode == 'image':

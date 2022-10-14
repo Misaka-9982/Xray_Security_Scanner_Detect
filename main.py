@@ -113,7 +113,6 @@ class UiUpdate(QWidget):
         self.h = 0
         self.timer = QTimer()   # 定义计时器
         self.timer.timeout.connect(self.vidframeupdate)  # 不能在vidstart函数中绑定，否则会绑定多次，使一次timeout触发多次帧刷新导致帧速率异常
-        self.framebuffer = queue.Queue()  # 识别结果缓冲区
         self.allresult = []        # 标签和置信度
         self.isslowwarn = False    # 识别速度过慢提示标签
 
@@ -151,7 +150,7 @@ class UiUpdate(QWidget):
                 self.timer.stop()
                 core.runcore.needstop = True  # 终止检测线程信号
                 # 如果信号用qt信号发出，会导致异常在主线程被触发
-                self.framebuffer = queue.Queue()      # 清空缓冲区
+                core.runcore.framebuffer = queue.Queue()      # 清空缓冲区
                 core.runcore.runstatus = False
                 uiinit.ui3.videoLabel.setText('视频播放结束')
                 uiinit.ui3.detectResultListVid.clear()
@@ -183,11 +182,11 @@ class UiUpdate(QWidget):
             vidstart(signal[1])   # 传入fps
         # 帧和识别结果
         elif isinstance(signal[0], np.ndarray):  # signal[0]是图片，signal[1]是所有目标标签
-            self.framebuffer.put([signal[0], signal[1]], block=False)
-            print(self.framebuffer.qsize())
+            core.runcore.framebuffer.put([signal[0], signal[1]], block=False)
+            print(core.runcore.framebuffer.qsize())
         # 结束信号
         elif isinstance(signal[0], str) and signal[0] == 'finished':
-            self.framebuffer.put('finished')
+            core.runcore.framebuffer.put('finished')
         # 仅为了调用vidstop函数传任意参数时
         else:
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
@@ -199,7 +198,7 @@ class UiUpdate(QWidget):
             self.isslowwarn = True
 
         try:   # 如果播放速率大于识别速率会报队列空exception
-            resultdata = self.framebuffer.get(block=False)  # 从缓冲区队列读
+            resultdata = core.runcore.framebuffer.get(block=False)  # 从缓冲区队列读
             t_frame = resultdata[0]
             resultlist = resultdata[1]
             if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
