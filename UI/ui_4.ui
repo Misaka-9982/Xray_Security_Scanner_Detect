@@ -186,6 +186,11 @@
             <height>730</height>
            </size>
           </property>
+          <property name="font">
+           <font>
+            <pointsize>15</pointsize>
+           </font>
+          </property>
           <property name="text">
            <string>无视频</string>
           </property>

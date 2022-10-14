@@ -92,7 +92,7 @@ class Ui_MainWindow(object):
         self.videoLabel.setSizePolicy(sizePolicy)
         self.videoLabel.setMaximumSize(QtCore.QSize(900, 730))
         font = QtGui.QFont()
-        font.setPointSize(9)
+        font.setPointSize(15)
         self.videoLabel.setFont(font)
         self.videoLabel.setScaledContents(True)
         self.videoLabel.setAlignment(QtCore.Qt.AlignCenter)
