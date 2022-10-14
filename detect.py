@@ -62,7 +62,7 @@ class RunCore(QObject):
         self.needstop = False
 
     def stopthread(self):
-        raise Exception('线程被停止')
+        raise Exception('检测线程被停止')
 
     def run(self,
             weights=ROOT / 'yolov5s.pt',  # model.pt path(s)

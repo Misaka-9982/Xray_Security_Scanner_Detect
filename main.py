@@ -137,6 +137,7 @@ class UiUpdate(QWidget):
                 self.timer.start(100)   # 100ms / 10fps  启动帧刷新计时器
                 uiinit.ui3.detectResultListVid.clear()
                 uiinit.ui3.videolistlabel.setText('实时结果：')
+                self.allresult = []   # 清除上一次检测结果
             else:
                 pass
 
@@ -194,7 +195,7 @@ class UiUpdate(QWidget):
             self.isslowwarn = True
 
         try:   # 如果播放速率大于识别速率会报队列空exception
-            resultdata = self.framebuffer.get(block=False)
+            resultdata = self.framebuffer.get(block=False)  # 从缓冲区队列读
             t_frame = resultdata[0]
             resultlist = resultdata[1]
             if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
