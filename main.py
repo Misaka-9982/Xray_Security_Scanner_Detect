@@ -110,9 +110,11 @@ class UiUpdate(QWidget):
         self.w = 0
         self.h = 0
         self.timer = QTimer()   # 定义计时器
+        self.timer.timeout.connect(self.vidframeupdate)  # 不能在vidstart函数中绑定，否则会绑定多次，使一次timeout触发多次帧刷新导致帧速率异常
         self.framebuffer = queue.Queue()  # 识别结果缓冲区
         self.allresult = []        # 标签和置信度
         self.isslowwarn = False    # 识别速度过慢提示标签
+        self.vidstarting = False   # 视频已真正开始播放标签，在第一帧开始刷新时置为真
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
@@ -133,8 +135,7 @@ class UiUpdate(QWidget):
     def ui3update(self, signal):
         def vidstart():
             if not self.timer.isActive():
-                self.timer.timeout.connect(self.vidframeupdate)
-                self.timer.start(100)   # 100ms / 10fps
+                self.timer.start(100)   # 100ms / 10fps  启动帧刷新计时器
                 uiinit.ui3.detectResultListVid.clear()
                 uiinit.ui3.videolistlabel.setText('实时结果：')
             else:
@@ -142,8 +143,13 @@ class UiUpdate(QWidget):
 
         # 视频结束或按下停止时调用  注意按下停止时还要停止后台检测线程  清空缓冲区
         def vidstop():
+            # print(self.timer.isActive() or core.runcore.runstatus or core.runthread.is_alive())
             if self.timer.isActive() or core.runcore.runstatus or core.runthread.is_alive():
                 self.timer.stop()
+                core.runcore.needstop = True  # 终止检测线程信号
+                # 如果信号用qt信号发出，会导致异常在主线程被触发
+                self.framebuffer = queue.Queue()      # 清空缓冲区
+                core.runcore.runstatus = False
                 uiinit.ui3.videoLabel.setText('视频播放结束')
                 uiinit.ui3.detectResultListVid.clear()
                 # 显示所有出现过的物品
@@ -165,10 +171,7 @@ class UiUpdate(QWidget):
                 endresult.sort(reverse=True, key=lambda x: x[1])  # 出现过概率大的往前排
                 for result, conf in endresult:
                     uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
-                core.runcore.needstop = True  # 终止检测线程信号
-                # 如果信号用qt信号发出，会导致异常在主线程被触发
-                self.framebuffer = queue.Queue()      # 清空缓冲区
-                core.runcore.runstatus = False
+
 
         # 开始信号
         if isinstance(signal[0], str) and signal[0] == 'start':
@@ -191,6 +194,7 @@ class UiUpdate(QWidget):
 
         try:   # 如果播放速率大于识别速率会报队列空exception
             resultdata = self.framebuffer.get(block=False)
+            self.vidstarting = True
             t_frame = resultdata[0]
             resultlist = resultdata[1]
             if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
@@ -209,7 +213,7 @@ class UiUpdate(QWidget):
                 vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
                 vidstopfunc()
         except queue.Empty:
-            if not self.isslowwarn:
+            if not self.isslowwarn and not core.runcore.needstop:
                 slowwarn()
 
 
