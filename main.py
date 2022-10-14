@@ -156,7 +156,7 @@ class UiUpdate(QWidget):
                 uiinit.ui3.videoLabel.setText('视频播放结束')
                 uiinit.ui3.detectResultListVid.clear()
                 # 显示所有出现过的物品
-                uiinit.ui3.videolistlabel.setText('最终结果：')
+                uiinit.ui3.videolistlabel.setText('最终结果(每类最高置信度)：')
                 # 找出每类物品中最高置信度的算法
                 self.allresult.sort(key=lambda x: x[0])  # 将同类标签放到一起
                 t_max = 0
