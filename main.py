@@ -75,7 +75,7 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
             else:
                 pass
         else:
-            QMessageBox.warning(self, '警告', '当前有视频正在识别，请关闭后再选择新视频！', QMessageBox.Ok)
+            QMessageBox.warning(self, '警告', '当前有图片正在识别，请结束后再选择新图片！', QMessageBox.Ok)
 
     def viddetect(self):  # 后台识别线程已停止且视频播放结束
         if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
@@ -151,7 +151,8 @@ class UiUpdate(QWidget):
                         endresult.append([t_lable, t_max])
                     t_lable = result[0]
                     t_max = result[1]
-            endresult.append([t_lable, t_max])
+            endresult.append([t_lable, t_max])  # endresult中t_table无重复的
+            endresult.sort(reverse=True, key=lambda x: x[1])  # 出现过概率大的往前排
             for result, conf in endresult:
                 uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
 
@@ -169,7 +170,7 @@ class UiUpdate(QWidget):
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
     def vidframeupdate(self):   # 收到计时器timeout信号时触发
-        def slowwarn():
+        def slowwarn():                               # 缓冲区过大问题
             QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于10fps，可能导致视频较卡顿，'
                                             '请安装显卡加速环境或使用较快的低精度模型', QMessageBox.Ok)
             self.isslowwarn = True
@@ -190,8 +191,6 @@ class UiUpdate(QWidget):
                     uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
                     # 统计最终标签列表  费时部分在stop函数执行
                     self.allresult.append([result, conf])
-
-
             else:   # 队列空 且已经识别完毕，不是等待识别状态
                 vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
                 vidstopfunc()
