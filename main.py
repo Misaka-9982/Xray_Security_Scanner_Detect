@@ -79,6 +79,7 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
                 uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
                 self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
                 self.runcore.needstop = False
+                uiinit.ui2.imageLabel.setText('正在检测...请稍后')
                 self.runthread.start()
             else:
                 pass
@@ -93,6 +94,7 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
                 uiinit.ui3.detectResultListVid.clear()
                 self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
                 self.runcore.needstop = False
+                uiinit.ui3.videoLabel.setText('正在检测...请稍后')
                 self.runthread.start()
             else:
                 pass
