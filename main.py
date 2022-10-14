@@ -1,3 +1,4 @@
+import os
 import sys
 import threading
 import queue
@@ -38,20 +39,38 @@ class UI_init(QObject):
         self.ui2.setupUi(Mainwindow)
         Mainwindow.show()
         self.ui2.selectImageButton.clicked.connect(core.imgdetect)
+        self.ui2.weightButton.clicked.connect(core.weightselect)
+        # 目录下存在yolov5s.pt时显示默认权重
+        if core.weight in os.listdir():
+            uiinit.ui2.weightLabel.setText('当前权重模型：' + core.weight)
+        else:
+            uiinit.ui2.weightLabel.setText('当前权重模型：' + 'None')
 
     def initui3(self):
         self.ui3 = UI.ui_3.Ui_MainWindow()
         self.ui3.setupUi(Mainwindow)
         Mainwindow.show()
         self.ui3.selectVideoButton.clicked.connect(core.viddetect)
+        self.ui3.weightButton.clicked.connect(core.weightselect)
         vidstop = self.uiupdate.ui3update([None])  # 参数无意义，只是为了返回vidstop函数
         self.ui3.stopvidButton.clicked.connect(vidstop)
+        # 目录下存在yolov5s.pt时显示默认权重
+        if core.weight in os.listdir():
+            uiinit.ui3.weightLabel.setText('当前权重模型：' + core.weight)
+        else:
+            uiinit.ui3.weightLabel.setText('当前权重模型：' + 'None')
 
     def initui4(self):
         self.ui4 = UI.ui_4.Ui_MainWindow()
         self.ui4.setupUi(Mainwindow)
         Mainwindow.show()
         self.ui4.selectCameraButton.clicked.connect(core.camdetect)
+        self.ui4.weightButton.clicked.connect(core.weightselect)
+        # 目录下存在yolov5s.pt时显示默认权重
+        if core.weight in os.listdir():
+            uiinit.ui4.weightLabel.setText('当前权重模型：' + core.weight)
+        else:
+            uiinit.ui4.weightLabel.setText('当前权重模型：' + 'None')
 
 
 class DetectCore(QWidget):  # 为了messagebox继承自QWidget
@@ -66,18 +85,39 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
         self.runcore.vidresultsignal.connect(uiinit.uiupdate.ui3update)
         # self.runcore.camresultsignal.connect(uiinit.uiupdate.ui4update)
 
-        self.name = [None] * 2   # 文件名
+        self.weight = 'yolov5s.pt'  # 权重名
+        self.name = [None] * 2  # 文件名
 
         # 检测线程  # 为了后续对线程的控制，必须定义在这里作为实例变量
-        self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
+        self.runthread = threading.Thread(target=self.runcore.run, daemon=True,
+                                          kwargs={'weights': self.weight, 'source': self.name[0], 'nosave': True})
+
+    def weightselect(self):
+        if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
+            weight = QFileDialog.getOpenFileName(caption='选择权重模型', filter='Pytorch Weight File (*.pt)')
+            if len(weight[0]):
+                self.weight = weight[0]
+                if 'ui2' in dir(uiinit):
+                    uiinit.ui2.weightLabel.setText('当前权重模型：' + self.weight.split('/')[-1])
+                elif 'ui3' in dir(uiinit):
+                    uiinit.ui3.weightLabel.setText('当前权重模型：' + self.weight.split('/')[-1])
+                else:
+                    uiinit.ui4.weightLabel.setText('当前权重模型：' + self.weight.split('/')[-1])
+            else:
+                pass
+        else:
+            QMessageBox.warning(self, '警告', '当前正在识别，请结束后再选择新权重！', QMessageBox.Ok)
 
     def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
         if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
-            self.name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
-                                                                          '*.tif *.tiff *.webp')
-            if len(self.name[0]):    # 记得改权重为训练后的新权重
+            self.name = QFileDialog.getOpenFileName(caption='选择要识别的图片',
+                                                    filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
+                                                           '*.tif *.tiff *.webp')
+            if len(self.name[0]):
                 uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
-                self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
+                self.runthread = threading.Thread(target=self.runcore.run, daemon=True,
+                                                  kwargs={'weights': self.weight, 'source': self.name[0],
+                                                          'nosave': True})
                 self.runcore.needstop = False
                 uiinit.ui2.imageLabel.setText('正在检测...请稍后')
                 self.runthread.start()
@@ -88,18 +128,21 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
 
     def viddetect(self):  # 后台识别线程已停止且视频播放结束
         if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
-            self.name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
-                                                                          '*.mp4 *.mpeg *.mpg *.ts *.wmv')
+            self.name = QFileDialog.getOpenFileName(caption='选择要识别的视频',
+                                                    filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
+                                                           '*.mp4 *.mpeg *.mpg *.ts *.wmv')
             if len(self.name[0]):
                 uiinit.ui3.detectResultListVid.clear()
-                self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
+                self.runthread = threading.Thread(target=self.runcore.run, daemon=True,
+                                                  kwargs={'weights': self.weight, 'source': self.name[0],
+                                                          'nosave': True})
                 self.runcore.needstop = False
                 uiinit.ui3.videoLabel.setText('正在检测...请稍后')
                 self.runthread.start()
             else:
                 pass
         else:
-            QMessageBox.warning(self, '警告', '当前有视频正在识别，请关闭后再选择新视频！', QMessageBox.Ok)
+            QMessageBox.warning(self, '警告', '当前有视频正在识别，请停止后再选择新视频！', QMessageBox.Ok)
 
     def camdetect(self):
         pass
@@ -111,10 +154,10 @@ class UiUpdate(QWidget):
         self.fps = 0
         self.w = 0
         self.h = 0
-        self.timer = QTimer()   # 定义计时器
+        self.timer = QTimer()  # 定义计时器
         self.timer.timeout.connect(self.vidframeupdate)  # 不能在vidstart函数中绑定，否则会绑定多次，使一次timeout触发多次帧刷新导致帧速率异常
-        self.allresult = []        # 标签和置信度
-        self.isslowwarn = False    # 识别速度过慢提示标签
+        self.allresult = []  # 标签和置信度
+        self.isslowwarn = False  # 识别速度过慢提示标签
 
     def ui2update(self, signal):
         # 后面根据可能概率换为QTabelWidget来显示颜色等级
@@ -122,7 +165,7 @@ class UiUpdate(QWidget):
             uiinit.ui2.detectResultListImg.clear()
             signal[0].sort(reverse=True, key=lambda x: x[1])  # 按置信度降序
             for result, conf in signal[0]:
-                uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+                uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result + ' - ' + f'{conf:.2f}'))
         elif isinstance(signal[0], np.ndarray):  # 图片
             # 如下是从内存加载ndarray图片到Qpixmap显示在qlabel的流程  测试稳定
             frame = cv2.cvtColor(signal[0], cv2.COLOR_BGR2RGB)
@@ -136,10 +179,10 @@ class UiUpdate(QWidget):
     def ui3update(self, signal):
         def vidstart(fps):
             if not self.timer.isActive():
-                self.timer.start(int((1 / fps) * 1000))   # 按原视频帧速率，启动帧刷新计时器
+                self.timer.start(int((1 / fps) * 1000))  # 按原视频帧速率，启动帧刷新计时器
                 uiinit.ui3.detectResultListVid.clear()
                 uiinit.ui3.videolistlabel.setText('实时结果：')
-                self.allresult = []   # 清除上一次检测结果
+                self.allresult = []  # 清除上一次检测结果
             else:
                 pass
 
@@ -150,7 +193,7 @@ class UiUpdate(QWidget):
                 self.timer.stop()
                 core.runcore.needstop = True  # 终止检测线程信号
                 # 如果信号用qt信号发出，会导致异常在主线程被触发
-                core.runcore.framebuffer = queue.Queue()      # 清空缓冲区
+                core.runcore.framebuffer = queue.Queue()  # 清空缓冲区
                 core.runcore.runstatus = False
                 uiinit.ui3.videoLabel.setText('视频播放结束')
                 uiinit.ui3.detectResultListVid.clear()
@@ -173,13 +216,13 @@ class UiUpdate(QWidget):
                 endresult.sort(reverse=True, key=lambda x: x[1])  # 出现过概率大的往前排
                 try:
                     for result, conf in endresult:
-                        uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+                        uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result + ' - ' + f'{conf:.2f}'))
                 except TypeError:  # 第一帧还未识别完成时就终止，result为None会导致主线程崩溃
                     pass
 
         # 开始信号
         if isinstance(signal[0], str) and signal[0] == 'start':
-            vidstart(signal[1])   # 传入fps
+            vidstart(signal[1])  # 传入fps
         # 帧和识别结果
         elif isinstance(signal[0], np.ndarray):  # signal[0]是图片，signal[1]是所有目标标签
             core.runcore.framebuffer.put([signal[0], signal[1]], block=False)
@@ -191,17 +234,17 @@ class UiUpdate(QWidget):
         else:
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
-    def vidframeupdate(self):   # 收到计时器timeout信号时触发
-        def slowwarn():                               # 缓冲区过大问题
+    def vidframeupdate(self):  # 收到计时器timeout信号时触发
+        def slowwarn():  # 缓冲区过大问题
             QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于原视频帧速率，可能导致视频较卡顿，'
                                             '请安装显卡加速环境或使用较快的低精度模型', QMessageBox.Ok)
             self.isslowwarn = True
 
-        try:   # 如果播放速率大于识别速率会报队列空exception
+        try:  # 如果播放速率大于识别速率会报队列空exception
             resultdata = core.runcore.framebuffer.get(block=False)  # 从缓冲区队列读
             t_frame = resultdata[0]
             resultlist = resultdata[1]
-            if not isinstance(t_frame, str):   # t_frame不是结束字符串即为一帧
+            if not isinstance(t_frame, str):  # t_frame不是结束字符串即为一帧
                 frame = cv2.cvtColor(t_frame, cv2.COLOR_BGR2RGB)
                 height, width, bytesPerComponent = frame.shape
                 bytesPerLine = bytesPerComponent * width
@@ -210,10 +253,10 @@ class UiUpdate(QWidget):
                 # 更新标签列表
                 uiinit.ui3.detectResultListVid.clear()
                 for result, conf in resultlist:
-                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result + ' - ' + f'{conf:.2f}'))
                     # 统计最终标签列表  费时部分在stop函数执行
                     self.allresult.append([result, conf])
-            else:   # 队列空 且已经识别完毕，不是等待识别状态
+            else:  # 队列空 且已经识别完毕，不是等待识别状态
                 vidstopfunc = self.ui3update([None])  # 参数无意义，只是为了返回stop函数
                 vidstopfunc()
         except queue.Empty:
@@ -221,14 +264,8 @@ class UiUpdate(QWidget):
                 slowwarn()
 
 
-
-
-
-
-
 def ui4update(self, signal):
-        pass
-
+    pass
 
 
 if __name__ == '__main__':
@@ -238,7 +275,7 @@ if __name__ == '__main__':
     ui1 = UI.ui_1.Ui_MainWindow()
     ui1.setupUi(Mainwindow)
 
-    uiinit = UI_init()   # 此处实例化UI_init必须要将实例赋值给一个变量，否则构造函数初始化的信号连接将会被回收/中断
+    uiinit = UI_init()  # 此处实例化UI_init必须要将实例赋值给一个变量，否则构造函数初始化的信号连接将会被回收/中断
     core = DetectCore()
 
     Mainwindow.show()

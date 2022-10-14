@@ -134,7 +134,6 @@ class RunCore(QObject):
 
         recentfivetime = []   # 近五帧检测用时
         for path, im, im0s, vid_cap, s in dataset:  # 图片读取使用cv2.imread()，在dataset对象的类中，迭代器函数__next__()中调用
-            fps = vid_cap.get(cv2.CAP_PROP_FPS)
             t1 = time_sync()
             im = torch.from_numpy(im).to(device)
             im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
@@ -223,10 +222,10 @@ class RunCore(QObject):
                     self.imgresultsignal.emit([resultlist])
                     self.imgresultsignal.emit([im0])
                 else:       # 'video' or 'stream'
-                    self.vidresultsignal.emit(['start', fps])
+                    self.vidresultsignal.emit(['start', vid_cap.get(cv2.CAP_PROP_FPS)])
                     self.vidresultsignal.emit([im0, resultlist])
                     # 检测速度快于播放速度时，防止爆缓冲区，占大量内存
-                    if self.framebuffer.qsize() > fps * 4:  # 缓冲区缓冲了超过四秒的播放内容
+                    if self.framebuffer.qsize() > vid_cap.get(cv2.CAP_PROP_FPS) * 4:  # 缓冲区缓冲了超过四秒的播放内容
                         time.sleep(2)  # 就暂停两秒
                 # Save results (image with detections)
                 if save_img:

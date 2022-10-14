@@ -37,6 +37,20 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout">
           <item>
+           <widget class="QLabel" name="weightLabel">
+            <property name="text">
+             <string>当前权重模型：</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="weightButton">
+            <property name="text">
+             <string>选择权重模型</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <spacer name="verticalSpacer_3">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
