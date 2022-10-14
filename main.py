@@ -44,6 +44,8 @@ class UI_init(QObject):
         self.ui3.setupUi(Mainwindow)
         Mainwindow.show()
         self.ui3.selectVideoButton.clicked.connect(core.viddetect)
+        vidstop = self.uiupdate.ui3update([None])  # 参数无意义，只是为了返回vidstop函数
+        self.ui3.stopvidButton.clicked.connect(vidstop)
 
     def initui4(self):
         self.ui4 = UI.ui_4.Ui_MainWindow()
@@ -64,14 +66,20 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
         self.runcore.vidresultsignal.connect(uiinit.uiupdate.ui3update)
         # self.runcore.camresultsignal.connect(uiinit.uiupdate.ui4update)
 
+        self.name = [None] * 2   # 文件名
+
+        # 检测线程  # 为了后续对线程的控制，必须定义在这里作为实例变量
+        self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
+
     def imgdetect(self):  # 将来增加模型选择功能  # 是否保存识别后图片文件功能
         if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
-            name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
+            self.name = QFileDialog.getOpenFileName(caption='选择要识别的图片', filter='Images (*.bmp *.dng, *.jpeg *.jpg *.mpo *.png '
                                                                           '*.tif *.tiff *.webp')
-            if len(name[0]):    # 记得改权重为训练后的新权重
+            if len(self.name[0]):    # 记得改权重为训练后的新权重
                 uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
-                runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
-                runthread.start()
+                self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
+                self.runcore.needstop = False
+                self.runthread.start()
             else:
                 pass
         else:
@@ -79,12 +87,13 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
 
     def viddetect(self):  # 后台识别线程已停止且视频播放结束
         if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
-            name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
+            self.name = QFileDialog.getOpenFileName(caption='选择要识别的视频', filter='Videos (*.asf *.avi *.gif *.m4v *.mkv *.mov '
                                                                           '*.mp4 *.mpeg *.mpg *.ts *.wmv')
-            if len(name[0]):
+            if len(self.name[0]):
                 uiinit.ui3.detectResultListVid.clear()
-                runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': name[0], 'nosave': True})
-                runthread.start()
+                self.runthread = threading.Thread(target=self.runcore.run, daemon=True, kwargs={'weights': 'yolov5s.pt', 'source': self.name[0], 'nosave': True})
+                self.runcore.needstop = False
+                self.runthread.start()
             else:
                 pass
         else:
@@ -131,30 +140,35 @@ class UiUpdate(QWidget):
             else:
                 pass
 
-        # 视频结束或按下停止时调用  注意按下停止时还要停止后台检测线程
+        # 视频结束或按下停止时调用  注意按下停止时还要停止后台检测线程  清空缓冲区
         def vidstop():
-            self.timer.stop()
-            uiinit.ui3.videoLabel.setText('视频播放结束')
-            uiinit.ui3.detectResultListVid.clear()
-            # 显示所有出现过的物品
-            uiinit.ui3.videolistlabel.setText('最终结果：')
-            # 找出每类物品中最高置信度的算法
-            self.allresult.sort(key=lambda x: x[0])  # 将同类标签放到一起
-            t_max = 0
-            t_lable = None
-            endresult = []
-            for result in self.allresult:
-                if t_lable == result[0] and t_max < result[1]:
-                    t_max = result[1]
-                elif t_lable != result[0]:  # 不能用else，会把同类不大于的放进来
-                    if t_lable is not None:
-                        endresult.append([t_lable, t_max])
-                    t_lable = result[0]
-                    t_max = result[1]
-            endresult.append([t_lable, t_max])  # endresult中t_table无重复的
-            endresult.sort(reverse=True, key=lambda x: x[1])  # 出现过概率大的往前排
-            for result, conf in endresult:
-                uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+            if self.timer.isActive() or core.runcore.runstatus or core.runthread.is_alive():
+                self.timer.stop()
+                uiinit.ui3.videoLabel.setText('视频播放结束')
+                uiinit.ui3.detectResultListVid.clear()
+                # 显示所有出现过的物品
+                uiinit.ui3.videolistlabel.setText('最终结果：')
+                # 找出每类物品中最高置信度的算法
+                self.allresult.sort(key=lambda x: x[0])  # 将同类标签放到一起
+                t_max = 0
+                t_lable = None
+                endresult = []
+                for result in self.allresult:
+                    if t_lable == result[0] and t_max < result[1]:
+                        t_max = result[1]
+                    elif t_lable != result[0]:  # 不能用else，会把同类不大于的放进来
+                        if t_lable is not None:
+                            endresult.append([t_lable, t_max])
+                        t_lable = result[0]
+                        t_max = result[1]
+                endresult.append([t_lable, t_max])  # endresult中t_table无重复的
+                endresult.sort(reverse=True, key=lambda x: x[1])  # 出现过概率大的往前排
+                for result, conf in endresult:
+                    uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result+' - '+f'{conf:.2f}'))
+                core.runcore.needstop = True  # 终止检测线程信号
+                # 如果信号用qt信号发出，会导致异常在主线程被触发
+                self.framebuffer = queue.Queue()      # 清空缓冲区
+                core.runcore.runstatus = False
 
         # 开始信号
         if isinstance(signal[0], str) and signal[0] == 'start':

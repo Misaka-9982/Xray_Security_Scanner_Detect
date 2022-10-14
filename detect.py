@@ -59,6 +59,10 @@ class RunCore(QObject):
     def __init__(self):
         super(RunCore, self).__init__()
         self.runstatus = False
+        self.needstop = False
+
+    def stopthread(self):
+        raise Exception('线程被停止')
 
     def run(self,
             weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
@@ -200,6 +204,9 @@ class RunCore(QObject):
                         cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
                     cv2.imshow(str(p), im0)
                     cv2.waitKey(1)  # 1 millisecond
+                if self.needstop:
+                    self.stopthread()
+
                 # 发射数据
                 if dataset.mode == 'image':
                     self.imgresultsignal.emit(resultlist)
