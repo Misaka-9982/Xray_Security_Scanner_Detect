@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
         self.label_2.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setFamily("幼圆")
-        font.setPointSize(20)
+        font.setPointSize(30)
         self.label_2.setFont(font)
         self.label_2.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.label_2.setAlignment(QtCore.Qt.AlignCenter)
