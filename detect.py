@@ -50,6 +50,7 @@ from utils.general import (LOGGER, check_file, check_img_size, check_imshow, che
                            increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
+from localize import x_ray_dataset
 
 
 # @torch.no_grad()  # 减少内存/显存消耗，理论上加快计算，但是实测不明显甚至有反作用
@@ -97,7 +98,7 @@ class RunCore(QObject):
             hide_conf=False,  # hide confidences
             half=False,  # use FP16 half-precision inference
             dnn=False,  # use OpenCV DNN for ONNX inference
-    ):
+            ):
         self.runstatus = True
         source = str(source)
         save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -133,7 +134,7 @@ class RunCore(QObject):
         model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
         seen, windows, dt = 0, [], [0.0, 0.0, 0.0]
 
-        recentfivetime = []   # 近五帧检测用时
+        recentfivetime = []  # 近五帧检测用时
         for path, im, im0s, vid_cap, s in dataset:  # 图片读取使用cv2.imread()，在dataset对象的类中，迭代器函数__next__()中调用
             t1 = time_sync()
             im = torch.from_numpy(im).to(device)
@@ -168,7 +169,8 @@ class RunCore(QObject):
 
                 p = Path(p)  # to Path
                 save_path = str(save_dir / p.name)  # im.jpg
-                txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
+                txt_path = str(save_dir / 'labels' / p.stem) + (
+                    '' if dataset.mode == 'image' else f'_{frame}')  # im.txt
                 s += '%gx%g ' % im.shape[2:]  # print string
                 gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
                 imc = im0.copy() if save_crop else im0  # for save_crop
@@ -200,7 +202,9 @@ class RunCore(QObject):
                             c = int(cls)  # integer class
                             label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                             annotator.box_label(xyxy, label, color=colors(c, True))
-                            resultlist.append([names[c], conf])
+
+                            resultlist.append([names[c] if x_ray_dataset.get(names[c]) is None
+                                               else x_ray_dataset.get(names[c]), conf])
                         if save_crop:
                             save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
@@ -222,7 +226,7 @@ class RunCore(QObject):
                 if dataset.mode == 'image':
                     self.imgresultsignal.emit([resultlist])
                     self.imgresultsignal.emit([im0])
-                else:       # 'video' or 'stream'
+                else:  # 'video' or 'stream'
                     self.vidresultsignal.emit(['start', vid_cap.get(cv2.CAP_PROP_FPS)])
                     self.vidresultsignal.emit([im0, resultlist])
                     # 检测速度快于播放速度时，防止爆缓冲区，占大量内存

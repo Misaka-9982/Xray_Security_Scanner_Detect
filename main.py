@@ -255,7 +255,7 @@ class UiUpdate(QWidget):
             return vidstop  # 停止时间需要以播放速度为准，返回出stop函数用于外部调用
 
     def vidframeupdate(self):  # 收到计时器timeout信号时触发
-        def slowwarn():  # 缓冲区过大问题
+        def slowwarn():
             QMessageBox.warning(self, '警告', '检测到您的电脑识别速度低于原视频帧速率，可能导致视频较卡顿，'
                                             '请安装显卡加速环境或使用较快的低精度模型', QMessageBox.Ok)
             self.isslowwarn = True
