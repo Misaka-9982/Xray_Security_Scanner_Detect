@@ -67,6 +67,7 @@ class RunCore(QObject):
         self.framebuffer = queue.Queue()  # 识别结果缓冲区
 
     def stopthread(self):
+        self.runstatus = False
         raise Exception('检测线程被停止')
 
     def run(self,
