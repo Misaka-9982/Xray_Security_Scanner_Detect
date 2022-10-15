@@ -40,6 +40,7 @@ class UI_init(QObject):
         Mainwindow.show()
         self.ui2.selectImageButton.clicked.connect(core.imgdetect)
         self.ui2.weightButton.clicked.connect(core.weightselect)
+        self.ui2.confComboBox.currentIndexChanged.connect(core.conf_thresmodify)
         # 目录下存在yolov5s.pt时显示默认权重
         if core.weight in os.listdir():
             uiinit.ui2.weightLabel.setText('当前权重模型：' + core.weight)
@@ -52,6 +53,7 @@ class UI_init(QObject):
         Mainwindow.show()
         self.ui3.selectVideoButton.clicked.connect(core.viddetect)
         self.ui3.weightButton.clicked.connect(core.weightselect)
+        self.ui3.confComboBox.currentIndexChanged.connect(core.conf_thresmodify)
         vidstop = self.uiupdate.ui3update([None])  # 参数无意义，只是为了返回vidstop函数
         self.ui3.stopvidButton.clicked.connect(vidstop)
         # 目录下存在yolov5s.pt时显示默认权重
@@ -66,6 +68,7 @@ class UI_init(QObject):
         Mainwindow.show()
         self.ui4.selectCameraButton.clicked.connect(core.camdetect)
         self.ui4.weightButton.clicked.connect(core.weightselect)
+        self.ui4.confComboBox.currentIndexChanged.connect(core.conf_thresmodify)
         # 目录下存在yolov5s.pt时显示默认权重
         if core.weight in os.listdir():
             uiinit.ui4.weightLabel.setText('当前权重模型：' + core.weight)
@@ -87,10 +90,22 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
 
         self.weight = 'yolov5s.pt'  # 权重名
         self.name = [None] * 2  # 文件名
+        self.conf_thres = 0.25  # 置信度阈值过滤
 
         # 检测线程  # 为了后续对线程的控制，必须定义在这里作为实例变量
         self.runthread = threading.Thread(target=self.runcore.run, daemon=True,
-                                          kwargs={'weights': self.weight, 'source': self.name[0], 'nosave': True})
+                                          kwargs={'weights': self.weight, 'source': self.name[0], 'nosave': True, 'conf_thres': self.conf_thres})
+
+    def conf_thresmodify(self):
+        if self.runcore.runstatus or uiinit.uiupdate.timer.isActive():
+            QMessageBox.warning(self, f'警告', f'当前正在识别，筛选比例修改无效！将保持{self.conf_thres}', QMessageBox.Ok)
+        else:
+            if 'ui2' in dir(uiinit):
+                self.conf_thres = float(uiinit.ui2.confComboBox.currentText())
+            elif 'ui3' in dir(uiinit):
+                self.conf_thres = float(uiinit.ui3.confComboBox.currentText())
+            elif 'ui4' in dir(uiinit):
+                self.conf_thres = float(uiinit.ui4.confComboBox.currentText())
 
     def weightselect(self):
         if not self.runcore.runstatus and not uiinit.uiupdate.timer.isActive():
@@ -115,9 +130,10 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
                                                            '*.tif *.tiff *.webp')
             if len(self.name[0]):
                 uiinit.ui2.detectResultListImg.clear()  # 开始图片检测前清空原有记录
+                uiinit.ui2.centralwidget.setStyleSheet('''QWidget{background-color:rgb(240, 240, 240);}''')
                 self.runthread = threading.Thread(target=self.runcore.run, daemon=True,
                                                   kwargs={'weights': self.weight, 'source': self.name[0],
-                                                          'nosave': True})
+                                                          'nosave': True, 'conf_thres': self.conf_thres})
                 self.runcore.needstop = False
                 uiinit.ui2.imageLabel.setText('正在检测...请稍后')
                 self.runthread.start()
@@ -133,9 +149,10 @@ class DetectCore(QWidget):  # 为了messagebox继承自QWidget
                                                            '*.mp4 *.mpeg *.mpg *.ts *.wmv')
             if len(self.name[0]):
                 uiinit.ui3.detectResultListVid.clear()
+                uiinit.ui3.centralwidget.setStyleSheet('''QWidget{background-color:rgb(240, 240, 240);}''')
                 self.runthread = threading.Thread(target=self.runcore.run, daemon=True,
                                                   kwargs={'weights': self.weight, 'source': self.name[0],
-                                                          'nosave': True})
+                                                          'nosave': True, 'conf_thres': self.conf_thres})
                 self.runcore.needstop = False
                 uiinit.ui3.videoLabel.setText('正在检测...请稍后')
                 self.runthread.start()
@@ -164,6 +181,8 @@ class UiUpdate(QWidget):
         if isinstance(signal[0], list):  # 结果列表
             uiinit.ui2.detectResultListImg.clear()
             signal[0].sort(reverse=True, key=lambda x: x[1])  # 按置信度降序
+            if len(signal[0]):
+                uiinit.ui2.centralwidget.setStyleSheet('''QWidget{background-color:#fea5a5;}''')
             for result, conf in signal[0]:
                 uiinit.ui2.detectResultListImg.addItem(QListWidgetItem(result + ' - ' + f'{conf:.2f}'))
         elif isinstance(signal[0], np.ndarray):  # 图片
@@ -217,6 +236,7 @@ class UiUpdate(QWidget):
                 try:
                     for result, conf in endresult:
                         uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result + ' - ' + f'{conf:.2f}'))
+                        uiinit.ui3.centralwidget.setStyleSheet('''QWidget{background-color:#fea5a5;}''')
                 except TypeError:  # 第一帧还未识别完成时就终止，result为None会导致主线程崩溃
                     pass
 
@@ -252,6 +272,10 @@ class UiUpdate(QWidget):
                 uiinit.ui3.videoLabel.setPixmap(QPixmap.fromImage(qimage))
                 # 更新标签列表
                 uiinit.ui3.detectResultListVid.clear()
+                if len(resultlist):
+                    uiinit.ui3.centralwidget.setStyleSheet('''QWidget{background-color:#fea5a5;}''')
+                else:
+                    uiinit.ui3.centralwidget.setStyleSheet('''QWidget{background-color:rgb(240, 240, 240);}''')
                 for result, conf in resultlist:
                     uiinit.ui3.detectResultListVid.addItem(QListWidgetItem(result + ' - ' + f'{conf:.2f}'))
                     # 统计最终标签列表  费时部分在stop函数执行
