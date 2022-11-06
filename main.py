@@ -287,9 +287,8 @@ class UiUpdate(QWidget):
             if not self.isslowwarn and not core.runcore.needstop:
                 slowwarn()
 
-
-def ui4update(self, signal):
-    pass
+    def ui4update(self, signal):
+        pass
 
 
 if __name__ == '__main__':
